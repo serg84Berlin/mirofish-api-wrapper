@@ -22,6 +22,7 @@ from flask_cors import CORS
 
 MIROFISH_BASE_URL = os.getenv("MIROFISH_BASE_URL", "http://localhost:5001")
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "3600"))
+SIM_RUN_TIMEOUT = int(os.getenv("SIM_RUN_TIMEOUT", "21600"))  # 6h for multi-agent simulation runs
 
 
 class MiroFishAPIError(Exception):
@@ -826,7 +827,9 @@ def _run_pipeline(job_id: str) -> None:
         )
 
         # Stage 7 – Wait for simulation to finish (polls run-status)
-        run_result = mf.wait_for_simulation(sim_id, poll_interval=5.0, timeout=LLM_TIMEOUT)
+        # Simulation runs can take hours depending on agent count and rounds;
+        # use a separate, much longer timeout than the per-LLM-call timeout.
+        run_result = mf.wait_for_simulation(sim_id, poll_interval=10.0, timeout=SIM_RUN_TIMEOUT)
         store.update(
             job_id,
             stage="report_generate",
