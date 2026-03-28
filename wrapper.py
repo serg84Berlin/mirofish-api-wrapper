@@ -801,7 +801,8 @@ def _run_pipeline(job_id: str) -> None:
         )
 
         # Stage 5 – Generate profiles (needs graph_id)
-        profiles_result = mf.generate_profiles(graph_id, **params.get("profiles", {}))
+        profile_params = {"parallel_profile_count": 8, **params.get("profiles", {})}
+        profiles_result = mf.generate_profiles(graph_id, **profile_params)
         store.update(
             job_id,
             stage="simulation_start",
