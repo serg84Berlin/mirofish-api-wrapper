@@ -20,7 +20,7 @@ from flask_cors import CORS
 # MiroFish low-level client
 # ======================================================================
 
-MIROFISH_BASE_URL = os.getenv("MIROFISH_BASE_URL", "http://localhost:8000")
+MIROFISH_BASE_URL = os.getenv("MIROFISH_BASE_URL", "http://localhost:5001")
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "1200"))
 
 
@@ -55,20 +55,85 @@ class MiroFishClient:
         return self._request("GET", "/health")
 
     # Graph / Ontology
-    def generate_ontology(self, payload: dict) -> Any:
-        return self._request("POST", "/api/graph/ontology/generate", json=payload)
+    def generate_ontology(self, simulation_requirement: str, project_name: str) -> Any:
+        return self._request(
+            "POST",
+            "/api/graph/ontology/generate",
+            data={
+                "simulation_requirement": simulation_requirement,
+                "project_name": project_name,
+            },
+            files={
+                "files": (
+                    "seed_document.txt",
+                    simulation_requirement.encode("utf-8"),
+                    "text/plain",
+                ),
+            },
+        )
 
-    def build_graph(self, payload: dict) -> Any:
+    def build_graph(self, project_id: str, **kwargs) -> Any:
+        payload = {"project_id": project_id, **kwargs}
         return self._request("POST", "/api/graph/build", json=payload)
 
+    def get_task_status(self, task_id: str) -> Any:
+        return self._request("GET", f"/api/graph/task/{task_id}")
+
+    def wait_for_task(self, task_id: str, poll_interval: float = 5.0, timeout: Optional[float] = None) -> Any:
+        elapsed = 0.0
+        while True:
+            result = self.get_task_status(task_id)
+            data = result.get("data", {}) if isinstance(result, dict) else {}
+            status = data.get("status", "")
+            if status == "completed":
+                return result
+            if status == "failed":
+                error_msg = data.get("error", "Task failed")
+                raise MiroFishAPIError(500, error_msg)
+            if timeout is not None and elapsed >= timeout:
+                raise TimeoutError(f"Task {task_id} did not finish within {timeout}s")
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+
     # Simulation
-    def create_simulation(self, payload: dict) -> Any:
+    def create_simulation(self, project_id: str, **kwargs) -> Any:
+        payload = {"project_id": project_id, **kwargs}
         return self._request("POST", "/api/simulation/create", json=payload)
 
-    def generate_profiles(self, payload: dict) -> Any:
+    def prepare_simulation(self, simulation_id: str, **kwargs) -> Any:
+        payload = {"simulation_id": simulation_id, **kwargs}
+        return self._request("POST", "/api/simulation/prepare", json=payload)
+
+    def get_prepare_status(self, simulation_id: str, task_id: str | None = None) -> Any:
+        payload: dict[str, Any] = {"simulation_id": simulation_id}
+        if task_id:
+            payload["task_id"] = task_id
+        return self._request("POST", "/api/simulation/prepare/status", json=payload)
+
+    def wait_for_prepare(
+        self, simulation_id: str, task_id: str | None = None,
+        poll_interval: float = 5.0, timeout: Optional[float] = None,
+    ) -> Any:
+        elapsed = 0.0
+        while True:
+            result = self.get_prepare_status(simulation_id, task_id)
+            data = result.get("data", {}) if isinstance(result, dict) else {}
+            status = data.get("status", "")
+            if status in ("ready", "completed"):
+                return result
+            if status == "failed":
+                raise MiroFishAPIError(500, data.get("message", "Prepare failed"))
+            if timeout is not None and elapsed >= timeout:
+                raise TimeoutError(f"Prepare for {simulation_id} did not finish within {timeout}s")
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+
+    def generate_profiles(self, graph_id: str, **kwargs) -> Any:
+        payload = {"graph_id": graph_id, **kwargs}
         return self._request("POST", "/api/simulation/generate-profiles", json=payload)
 
-    def start_simulation(self, payload: dict) -> Any:
+    def start_simulation(self, simulation_id: str, **kwargs) -> Any:
+        payload = {"simulation_id": simulation_id, **kwargs}
         return self._request("POST", "/api/simulation/start", json=payload)
 
     def get_run_status(self, simulation_id: str) -> Any:
@@ -79,10 +144,11 @@ class MiroFishClient:
     ) -> Any:
         elapsed = 0.0
         while True:
-            status = self.get_run_status(simulation_id)
-            state = status if isinstance(status, str) else status.get("status", "")
-            if state in ("completed", "failed", "error"):
-                return status
+            result = self.get_run_status(simulation_id)
+            data = result.get("data", {}) if isinstance(result, dict) else {}
+            runner_status = data.get("runner_status", "")
+            if runner_status in ("completed", "stopped", "failed", "error"):
+                return result
             if timeout is not None and elapsed >= timeout:
                 raise TimeoutError(
                     f"Simulation {simulation_id} did not finish within {timeout}s"
@@ -91,10 +157,12 @@ class MiroFishClient:
             elapsed += poll_interval
 
     # Report
-    def generate_report(self, payload: dict) -> Any:
+    def generate_report(self, simulation_id: str, **kwargs) -> Any:
+        payload = {"simulation_id": simulation_id, **kwargs}
         return self._request("POST", "/api/report/generate", json=payload)
 
-    def report_chat(self, payload: dict) -> Any:
+    def report_chat(self, simulation_id: str, message: str, chat_history: list | None = None) -> Any:
+        payload = {"simulation_id": simulation_id, "message": message, "chat_history": chat_history or []}
         return self._request("POST", "/api/report/chat", json=payload)
 
 
@@ -136,27 +204,37 @@ _COUNTRY_BY_CODE: dict[str, dict] = {c["code"]: c for c in EU_COUNTRIES}
 
 
 def build_seed_document(country_code: str, scenario: str = "") -> str:
-    """Generate a seed document for a country that feeds MiroFish ontology generation."""
+    """Generate a seed document for a country that feeds MiroFish ontology generation.
+
+    The user-supplied *scenario* is the primary simulation requirement.
+    Country profile data is appended as supplementary context so MiroFish
+    can ground its ontology in real indicators without overriding the
+    user's intent.
+    """
     country = _COUNTRY_BY_CODE.get(country_code.upper())
     if country is None:
         raise ValueError(f"Unknown country code: {country_code}")
 
-    lines = [
-        f"Country: {country['name']} ({country['code']})",
-        f"Capital: {country['capital']}",
-        f"Population: {country['population']:,}",
-        f"GDP per capita (EUR): {country['gdp_per_capita']:,}",
-        f"Unemployment rate: {country['unemployment_rate']}%",
+    # --- Primary: user scenario drives the simulation -----------------
+    lines: list[str] = []
+    if scenario:
+        lines.append(f"Simulation Requirement: {scenario}")
+        lines.append("")
+
+    # --- Supplementary: country reference data ------------------------
+    lines.extend([
+        f"Country context for {country['name']} ({country['code']}):",
+        f"  Capital: {country['capital']}",
+        f"  Population: {country['population']:,}",
+        f"  GDP per capita (EUR): {country['gdp_per_capita']:,}",
+        f"  Unemployment rate: {country['unemployment_rate']}%",
+        f"  EU member state.",
         "",
-        "Context: European Union member state.",
-        f"Scenario focus: {scenario}" if scenario else "",
-        "",
-        "The simulation should model socio-economic dynamics including labour markets, "
-        "fiscal policy, demographic shifts, trade flows, and public infrastructure "
-        f"investment for {country['name']}. Use Eurostat baseline indicators where "
-        "applicable.",
-    ]
-    return "\n".join(line for line in lines if line is not None)
+        "Use the Eurostat baseline indicators above as reference data for "
+        "the simulation. The simulation MUST focus on the requirement stated "
+        "above.",
+    ])
+    return "\n".join(lines)
 
 
 # ======================================================================
@@ -218,6 +296,7 @@ PIPELINE_STAGES = [
     "ontology_generate",
     "graph_build",
     "simulation_create",
+    "simulation_prepare",
     "generate_profiles",
     "simulation_start",
     "simulation_run",
@@ -239,82 +318,103 @@ def _run_pipeline(job_id: str) -> None:
     store.update(job_id, status="running", stage="ontology_generate", progress=0)
 
     try:
-        # Stage 1 – Ontology generation
-        ontology_payload = {"seed_document": seed_doc, **params.get("ontology", {})}
-        ontology_result = mf.generate_ontology(ontology_payload)
+        # Stage 1 – Ontology generation (multipart/form-data)
+        country = _COUNTRY_BY_CODE[country_code]
+        project_name = params.get("project_name", f"MiroFish – {country['name']}")
+        ontology_result = mf.generate_ontology(
+            simulation_requirement=seed_doc,
+            project_name=project_name,
+        )
+        ontology_data = ontology_result.get("data", {}) if isinstance(ontology_result, dict) else {}
+        project_id = ontology_data.get("project_id")
         store.update(
             job_id,
             stage="graph_build",
             stages_completed=["ontology_generate"],
-            progress=14,
+            progress=12,
         )
 
-        # Stage 2 – Graph build
-        graph_payload = {"ontology": ontology_result, **params.get("graph", {})}
-        graph_result = mf.build_graph(graph_payload)
+        # Stage 2 – Graph build (needs project_id, async — poll task until done)
+        graph_result = mf.build_graph(project_id, **params.get("graph", {}))
+        graph_data = graph_result.get("data", {}) if isinstance(graph_result, dict) else {}
+        graph_task_id = graph_data.get("task_id")
+        if graph_task_id:
+            mf.wait_for_task(graph_task_id, poll_interval=5.0, timeout=LLM_TIMEOUT)
         store.update(
             job_id,
             stage="simulation_create",
             stages_completed=["ontology_generate", "graph_build"],
-            progress=28,
+            progress=25,
         )
 
-        # Stage 3 – Create simulation
-        sim_create_payload = {"graph": graph_result, **params.get("simulation", {})}
-        sim_result = mf.create_simulation(sim_create_payload)
-        sim_id = (
-            sim_result.get("simulation_id") or sim_result.get("id")
-            if isinstance(sim_result, dict)
-            else sim_result
+        # Stage 3 – Create simulation (needs project_id, returns simulation_id + graph_id)
+        sim_result = mf.create_simulation(project_id, **params.get("simulation", {}))
+        sim_data = sim_result.get("data", {}) if isinstance(sim_result, dict) else {}
+        sim_id = sim_data.get("simulation_id")
+        graph_id = sim_data.get("graph_id")
+        store.update(
+            job_id,
+            stage="simulation_prepare",
+            stages_completed=["ontology_generate", "graph_build", "simulation_create"],
+            progress=37,
         )
+
+        # Stage 4 – Prepare simulation (needs simulation_id, async — poll until ready)
+        prepare_result = mf.prepare_simulation(sim_id, **params.get("prepare", {}))
+        prepare_data = prepare_result.get("data", {}) if isinstance(prepare_result, dict) else {}
+        prepare_task_id = prepare_data.get("task_id")
+        if not prepare_data.get("already_prepared"):
+            mf.wait_for_prepare(sim_id, prepare_task_id, poll_interval=5.0, timeout=LLM_TIMEOUT)
         store.update(
             job_id,
             stage="generate_profiles",
-            stages_completed=["ontology_generate", "graph_build", "simulation_create"],
-            progress=42,
+            stages_completed=["ontology_generate", "graph_build", "simulation_create", "simulation_prepare"],
+            progress=50,
         )
 
-        # Stage 4 – Generate profiles
-        profiles_payload = {"simulation_id": sim_id, **params.get("profiles", {})}
-        mf.generate_profiles(profiles_payload)
+        # Stage 5 – Generate profiles (needs graph_id)
+        profiles_result = mf.generate_profiles(graph_id, **params.get("profiles", {}))
         store.update(
             job_id,
             stage="simulation_start",
             stages_completed=[
                 "ontology_generate", "graph_build", "simulation_create",
-                "generate_profiles",
+                "simulation_prepare", "generate_profiles",
             ],
-            progress=56,
+            progress=62,
         )
 
-        # Stage 5 – Start simulation
-        start_payload = {"simulation_id": sim_id, **params.get("start", {})}
-        mf.start_simulation(start_payload)
+        # Stage 6 – Start simulation (needs simulation_id)
+        start_result = mf.start_simulation(sim_id, **params.get("start", {}))
         store.update(
             job_id,
             stage="simulation_run",
             stages_completed=[
                 "ontology_generate", "graph_build", "simulation_create",
-                "generate_profiles", "simulation_start",
+                "simulation_prepare", "generate_profiles", "simulation_start",
             ],
             progress=70,
         )
 
-        # Stage 6 – Wait for simulation to finish
+        # Stage 7 – Wait for simulation to finish (polls run-status)
         run_result = mf.wait_for_simulation(sim_id, poll_interval=5.0, timeout=LLM_TIMEOUT)
         store.update(
             job_id,
             stage="report_generate",
             stages_completed=[
                 "ontology_generate", "graph_build", "simulation_create",
-                "generate_profiles", "simulation_start", "simulation_run",
+                "simulation_prepare", "generate_profiles", "simulation_start",
+                "simulation_run",
             ],
             progress=85,
         )
 
-        # Stage 7 – Generate report
-        report_payload = {"simulation_id": sim_id, **params.get("report", {})}
-        report_result = mf.generate_report(report_payload)
+        # Stage 8 – Generate report (needs simulation_id, async — poll task)
+        report_result = mf.generate_report(sim_id, **params.get("report", {}))
+        report_data = report_result.get("data", {}) if isinstance(report_result, dict) else {}
+        report_task_id = report_data.get("task_id")
+        if report_task_id:
+            mf.wait_for_task(report_task_id, poll_interval=5.0, timeout=LLM_TIMEOUT)
 
         store.update(
             job_id,
@@ -323,10 +423,13 @@ def _run_pipeline(job_id: str) -> None:
             stages_completed=PIPELINE_STAGES,
             progress=100,
             result={
+                "project_id": project_id,
+                "graph_id": graph_id,
                 "simulation_id": sim_id,
                 "ontology": ontology_result,
                 "graph": graph_result,
                 "simulation": sim_result,
+                "profiles": profiles_result,
                 "run": run_result,
                 "report": report_result,
             },
@@ -462,9 +565,9 @@ def api_chat(job_id: str):
         return jsonify({"error": "No message provided"}), 400
 
     sim_id = job["result"]["simulation_id"]
-    chat_payload = {"simulation_id": sim_id, "message": message}
+    chat_history = body.get("chat_history", [])
     try:
-        reply = mf.report_chat(chat_payload)
+        reply = mf.report_chat(sim_id, message, chat_history)
     except MiroFishAPIError as exc:
         return jsonify({"error": str(exc)}), exc.status_code
 
