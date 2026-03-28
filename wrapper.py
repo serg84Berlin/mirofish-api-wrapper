@@ -21,7 +21,7 @@ from flask_cors import CORS
 # ======================================================================
 
 MIROFISH_BASE_URL = os.getenv("MIROFISH_BASE_URL", "http://localhost:5001")
-LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "1200"))
+LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "3600"))
 
 
 class MiroFishAPIError(Exception):
