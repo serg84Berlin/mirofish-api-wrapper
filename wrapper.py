@@ -202,6 +202,421 @@ EU_COUNTRIES: list[dict] = [
 
 _COUNTRY_BY_CODE: dict[str, dict] = {c["code"]: c for c in EU_COUNTRIES}
 
+# ======================================================================
+# Named-entity narratives per country (for NER / knowledge-graph seeding)
+# ======================================================================
+# Each entry is a short news-style paragraph that mentions 15-20 real
+# organisations, companies, institutions, media outlets, and key roles.
+# MiroFish NER uses these to populate the knowledge graph with agents.
+
+_COUNTRY_ENTITIES: dict[str, str] = {
+    "AT": (
+        "In Vienna, the Federation of Austrian Industries (Industriellenvereinigung) "
+        "convened a roundtable with OMV AG, voestalpine AG, and Erste Group Bank AG to "
+        "discuss the economic outlook. The Austrian National Bank (OeNB) published new "
+        "projections while the Austrian Institute of Economic Research (WIFO) and the "
+        "Institute for Advanced Studies (IHS) provided competing analyses. Federal "
+        "Chancellor Karl Nehammer's office coordinated with the Federal Ministry of "
+        "Finance (BMF) and the Austrian Economic Chambers (WKO). Coverage in Der "
+        "Standard and Die Presse highlighted statements by the CEO of Verbund AG and "
+        "the rector of TU Wien. The Austrian Trade Union Federation (ÖGB) and the "
+        "Chamber of Labour (Arbeiterkammer) weighed in on labour market implications, "
+        "while Red Bull GmbH and Raiffeisen Bank International announced new investment "
+        "plans. The Austrian Research Promotion Agency (FFG) confirmed additional "
+        "funding for the Austrian Academy of Sciences (ÖAW)."
+    ),
+    "BE": (
+        "The Federation of Enterprises in Belgium (FEB/VBO) met with representatives "
+        "from AB InBev, UCB SA, and KBC Group in Brussels. The National Bank of Belgium "
+        "(NBB) released its financial stability report as the Federal Planning Bureau "
+        "updated growth forecasts. Belgium's Deputy Prime Minister coordinated with the "
+        "Federal Public Service Economy (FPS Economy) and the Flemish Department of "
+        "Economy (VLAIO). Le Soir and De Tijd reported on statements by the CEO of "
+        "Proximus and the managing director of Solvay SA. The Belgian General Federation "
+        "of Labour (ABVV/FGTB) raised concerns about automation while Umicore NV and "
+        "Ageas SA announced quarterly results. Research institutions including imec and "
+        "the Université catholique de Louvain (UCLouvain) presented findings on digital "
+        "transformation. The Flemish employers' organisation Voka and the port authority "
+        "Port of Antwerp-Bruges discussed logistics competitiveness."
+    ),
+    "BG": (
+        "In Sofia, the Bulgarian Industrial Capital Association (BICA) hosted a forum "
+        "with Lukoil Neftochim Burgas, Aurubis Bulgaria, and Sopharma AD. The Bulgarian "
+        "National Bank (BNB) reported on euro-adoption readiness while the Center for "
+        "Economic Strategies and Competitiveness (CESC) released an investment climate "
+        "survey. The Ministry of Economy and Industry coordinated with the Bulgarian "
+        "Chamber of Commerce and Industry (BCCI). Capital Weekly and Dnevnik covered "
+        "statements from the CEO of Bulgarian Energy Holding (BEH) and the rector of "
+        "Sofia University St. Kliment Ohridski. The Confederation of Independent Trade "
+        "Unions in Bulgaria (CITUB) and the Bulgarian Academy of Sciences (BAS) "
+        "discussed workforce development. Eurohold Bulgaria, DSK Bank, and the Bulgarian "
+        "Development Bank announced infrastructure financing. The Agency for Small and "
+        "Medium-sized Enterprises (BSMEPA) and the National Statistical Institute (NSI) "
+        "released new data on regional disparities."
+    ),
+    "HR": (
+        "The Croatian Employers' Association (HUP) organised a conference in Zagreb "
+        "with representatives from INA Group, Atlantic Grupa, and Podravka dd. The "
+        "Croatian National Bank (HNB) assessed eurozone integration effects while the "
+        "Institute of Economics Zagreb published its economic outlook. The Ministry of "
+        "Economy and Sustainable Development coordinated with the Croatian Chamber of "
+        "Economy (HGK). Jutarnji List and Večernji List reported on statements by the "
+        "CEO of Hrvatski Telekom and the president of the Croatian Academy of Sciences "
+        "and Arts (HAZU). The Union of Autonomous Trade Unions of Croatia (SSSH) raised "
+        "wage-growth concerns. Rimac Technology, Infobip, and Valamar Riviera presented "
+        "expansion plans. The Ruđer Bošković Institute and the Faculty of Electrical "
+        "Engineering and Computing at the University of Zagreb released a joint study "
+        "on digital infrastructure. The Croatian Bureau of Statistics (DZS) updated "
+        "labour force data."
+    ),
+    "CY": (
+        "The Cyprus Chamber of Commerce and Industry (CCCI) held talks in Nicosia with "
+        "Bank of Cyprus, Hellenic Bank, and Cyprus Telecommunications Authority (CYTA). "
+        "The Central Bank of Cyprus published its lending survey while the Economics "
+        "Research Centre of the University of Cyprus released an inflation forecast. The "
+        "Ministry of Finance coordinated policy with the Cyprus Investment Promotion "
+        "Agency (CIPA). The Cyprus Mail and Phileleftheros covered statements by the CEO "
+        "of Eurobank Cyprus and the chair of the Cyprus Securities and Exchange "
+        "Commission (CySEC). The Cyprus Workers' Confederation (SEK) and the Pancyprian "
+        "Federation of Labour (PEO) debated minimum-wage adjustments. The Cyprus "
+        "Institute, the CYENS Centre of Excellence, and the Cyprus Energy Regulatory "
+        "Authority (CERA) discussed the energy transition. Cyprus Airways, Wargaming "
+        "Nicosia, and the Limassol Port Authority commented on trade competitiveness."
+    ),
+    "CZ": (
+        "The Confederation of Industry of the Czech Republic (SP ČR) convened in Prague "
+        "with Škoda Auto, ČEZ Group, and Agrofert. The Czech National Bank (ČNB) "
+        "tightened monetary guidance while the Czech Fiscal Council published debt "
+        "sustainability projections. The Ministry of Industry and Trade coordinated with "
+        "the Czech-Moravian Confederation of Trade Unions (ČMKOS). Hospodářské noviny "
+        "and Lidové noviny reported on the CEO of Komerční banka and the rector of "
+        "Charles University. PPF Group, Energo-Pro, and Avast Software outlined their "
+        "growth strategies. The Czech Academy of Sciences (AV ČR) and the Czech "
+        "Technical University (ČVUT) presented joint research on advanced manufacturing. "
+        "The Technology Agency of the Czech Republic (TA ČR) and CzechInvest announced "
+        "new incentives for semiconductor supply-chain investments."
+    ),
+    "DK": (
+        "The Confederation of Danish Industry (DI) held its annual summit in Copenhagen "
+        "with executives from Novo Nordisk, A.P. Møller-Mærsk, and Vestas Wind Systems. "
+        "The Danmarks Nationalbank published a financial-stability assessment while the "
+        "Danish Economic Councils (De Økonomiske Råd) released productivity projections. "
+        "The Ministry of Industry, Business and Financial Affairs coordinated with the "
+        "Danish Chamber of Commerce (Dansk Erhverv). Berlingske and Politiken covered "
+        "statements by the CEO of Ørsted and the president of the Technical University "
+        "of Denmark (DTU). The Danish Trade Union Confederation (FH) discussed green "
+        "transition labour needs. Carlsberg Group, Pandora A/S, and Danske Bank outlined "
+        "sustainability commitments. The Novo Nordisk Foundation and the Danish Agency "
+        "for Higher Education and Science announced research funding. Copenhagen "
+        "Infrastructure Partners (CIP) and the Danish Energy Agency discussed offshore "
+        "wind expansion."
+    ),
+    "EE": (
+        "The Estonian Employers' Confederation (Tööandjate Keskliit) met in Tallinn "
+        "with Bolt Technology, Wise (TransferWise), and Eesti Energia. The Bank of "
+        "Estonia (Eesti Pank) published its economic forecast while the Estonian "
+        "Institute of Economic Research (EKI) assessed digital-economy growth. The "
+        "Ministry of Economic Affairs and Communications coordinated with the Estonian "
+        "Chamber of Commerce and Industry (EKTK). Postimees and ERR News reported on "
+        "statements by the CEO of Telia Eesti and the rector of Tallinn University of "
+        "Technology (TalTech). The Estonian Trade Union Confederation (EAKL) discussed "
+        "remote-work policies. Skeleton Technologies, Nortal, and Swedbank Estonia "
+        "announced R&D investments. The National Institute of Chemical Physics and "
+        "Biophysics (KBFI) and the e-Governance Academy presented findings on digital "
+        "public services. Enterprise Estonia (EAS) and the Estonian Research Council "
+        "(ETAg) launched joint innovation calls."
+    ),
+    "FI": (
+        "The Confederation of Finnish Industries (EK) hosted a policy forum in Helsinki "
+        "with Nokia, Neste, and UPM-Kymmene. The Bank of Finland (Suomen Pankki) "
+        "adjusted its inflation outlook while the Research Institute of the Finnish "
+        "Economy (ETLA) published a competitiveness report. The Ministry of Economic "
+        "Affairs and Employment coordinated with Business Finland and the Finnish "
+        "Chamber of Commerce (Keskuskauppakamari). Helsingin Sanomat and Kauppalehti "
+        "reported on the CEO of Fortum and the president of VTT Technical Research "
+        "Centre of Finland. The Central Organisation of Finnish Trade Unions (SAK) "
+        "raised concerns about AI-driven displacement. KONE Corporation, Wärtsilä, and "
+        "Nordea Bank Finland discussed supply-chain resilience. Aalto University and the "
+        "Finnish Institute for Health and Welfare (THL) presented demographic impact "
+        "research. The Academy of Finland and Sitra (the Finnish Innovation Fund) "
+        "announced clean-energy funding initiatives."
+    ),
+    "FR": (
+        "In Paris, the Movement of the Enterprises of France (MEDEF) convened with "
+        "TotalEnergies, LVMH, and BNP Paribas. The Banque de France published its "
+        "quarterly projection while the INSEE national statistics institute released "
+        "updated employment data. The Ministry of Economy, Finance, and Industrial and "
+        "Digital Sovereignty coordinated with the French Treasury (Direction générale du "
+        "Trésor). Le Monde and Les Échos reported on statements by the CEO of Airbus "
+        "and the president of the French Academy of Sciences. The French Democratic "
+        "Confederation of Labour (CFDT) and the General Confederation of Labour (CGT) "
+        "debated pension-system impacts. Sanofi, Renault Group, and Société Générale "
+        "outlined digital transformation plans. The French National Centre for "
+        "Scientific Research (CNRS) and École Polytechnique presented AI policy "
+        "research. Bpifrance and the French Tech initiative discussed start-up ecosystem "
+        "competitiveness."
+    ),
+    "DE": (
+        "The Federation of German Industries (BDI) held an extraordinary session in "
+        "Berlin with board members of SAP SE, Siemens AG, and Deutsche Telekom AG. The "
+        "Deutsche Bundesbank adjusted its growth forecast while the German Council of "
+        "Economic Experts (Sachverständigenrat) published its annual report. Federal "
+        "Minister of Economics Robert Habeck's team at the Federal Ministry for Economic "
+        "Affairs and Climate Action (BMWK) coordinated with the German Chambers of "
+        "Commerce and Industry (DIHK). Handelsblatt and Der Spiegel covered statements "
+        "by the CTO of Deutsche Bank AG and the president of the Fraunhofer-Gesellschaft. "
+        "IG Metall and the German Trade Union Confederation (DGB) discussed workforce "
+        "transition impacts. Bitkom e.V. released its annual digital-economy monitor. "
+        "Volkswagen AG, BASF SE, and Allianz SE outlined their strategic responses. The "
+        "Max Planck Society, the Leibniz Association, and the Helmholtz Association "
+        "announced joint research clusters. The German Federal Employment Agency "
+        "(Bundesagentur für Arbeit) and KfW Development Bank published regional impact "
+        "assessments."
+    ),
+    "GR": (
+        "The Hellenic Federation of Enterprises (SEV) organised a summit in Athens with "
+        "executives from Hellenic Petroleum (HELLENiQ Energy), OTE Group (Cosmote), and "
+        "National Bank of Greece. The Bank of Greece published its monetary policy report "
+        "while the Centre of Planning and Economic Research (KEPE) released GDP "
+        "projections. The Ministry of National Economy and Finance coordinated with the "
+        "Athens Chamber of Commerce and Industry (ACCI). Kathimerini and Naftemporiki "
+        "covered statements by the CEO of Piraeus Bank and the rector of the National "
+        "Technical University of Athens (NTUA). The General Confederation of Greek "
+        "Workers (GSEE) raised concerns about youth unemployment. Eurobank, Alpha Bank, "
+        "and Motor Oil Hellas discussed investment plans. The Foundation for Economic & "
+        "Industrial Research (IOBE) and the Hellenic Foundation for European and Foreign "
+        "Policy (ELIAMEP) presented structural reform analyses. Enterprise Greece and "
+        "the Hellenic Development Bank announced export-support programmes."
+    ),
+    "HU": (
+        "The Confederation of Hungarian Employers and Industrialists (MGYOSZ) met in "
+        "Budapest with MOL Group, OTP Bank, and Richter Gedeon. The Magyar Nemzeti Bank "
+        "(MNB) published inflation targets while the Institute for Economic and "
+        "Enterprise Research (GVI) at the Budapest Chamber of Commerce assessed FDI "
+        "trends. The Ministry for National Economy coordinated with the Hungarian "
+        "Chamber of Commerce and Industry (MKIK). HVG and Portfolio.hu reported on "
+        "statements by the CEO of Magyar Telekom and the president of the Hungarian "
+        "Academy of Sciences (MTA). The National Federation of Workers' Councils "
+        "(Munkástanácsok) and the Trade Union of Commercial Employees (KASZ) discussed "
+        "wage policies. Wizz Air, BorsodChem (Wanhua), and CIG Pannónia outlined "
+        "expansion strategies. The Budapest University of Technology and Economics (BME) "
+        "and the Centre for Economic and Regional Studies (KRTK) published research on "
+        "regional convergence. The Hungarian Development Bank (MFB) announced EU-funded "
+        "infrastructure projects."
+    ),
+    "IE": (
+        "IBEC, Ireland's largest employer body, held a policy summit in Dublin with "
+        "representatives from CRH plc, Ryanair Holdings, and AIB Group. The Central "
+        "Bank of Ireland published its financial stability review while the Economic and "
+        "Social Research Institute (ESRI) released updated fiscal projections. The "
+        "Department of Enterprise, Trade and Employment coordinated with IDA Ireland and "
+        "Enterprise Ireland. The Irish Times and the Irish Independent reported on "
+        "statements by the CEO of Kerry Group and the provost of Trinity College Dublin. "
+        "The Irish Congress of Trade Unions (ICTU) raised concerns about housing costs "
+        "impacting labour mobility. Smurfit Kappa, Kingspan Group, and Bank of Ireland "
+        "discussed capital expenditure plans. Science Foundation Ireland (SFI) and the "
+        "Tyndall National Institute presented semiconductor research findings. The "
+        "National Treasury Management Agency (NTMA) and the Ireland Strategic Investment "
+        "Fund (ISIF) announced green-bond initiatives."
+    ),
+    "IT": (
+        "Confindustria convened an emergency session in Rome with executives from Enel "
+        "SpA, Eni SpA, and Intesa Sanpaolo. The Banca d'Italia revised its growth "
+        "outlook while ISTAT published updated employment statistics. The Ministry of "
+        "Economy and Finance (MEF) coordinated with the Italian Trade Agency (ICE) and "
+        "Cassa Depositi e Prestiti (CDP). Il Sole 24 Ore and Corriere della Sera "
+        "reported on statements by the CEO of UniCredit and the rector of Politecnico di "
+        "Milano. The Italian General Confederation of Labour (CGIL) and CISL debated "
+        "industrial policy reform. Ferrari NV, Leonardo SpA, and Generali Group outlined "
+        "strategic investments. The Italian National Research Council (CNR) and the "
+        "Fondazione Bruno Kessler presented AI governance research. Mediobanca and the "
+        "Italian Banking Association (ABI) published a lending survey. SACE SpA "
+        "announced new export credit instruments."
+    ),
+    "LV": (
+        "The Employers' Confederation of Latvia (LDDK) held discussions in Riga with "
+        "airBaltic, Latvenergo, and Latvijas Finieris. The Bank of Latvia (Latvijas "
+        "Banka) published an economic review while the Latvian Council of Science "
+        "assessed R&D investment levels. The Ministry of Economics coordinated with the "
+        "Latvian Chamber of Commerce and Industry (LTRK) and the Investment and "
+        "Development Agency of Latvia (LIAA). Delfi Latvia and Diena reported on "
+        "statements by the CEO of Tet (Lattelecom) and the rector of the University of "
+        "Latvia. The Free Trade Union Confederation of Latvia (LBAS) discussed workforce "
+        "emigration trends. Mikrotīkls (MikroTik), Printful, and Citadele Bank outlined "
+        "growth plans. The Institute of Electronics and Computer Science (EDI) and Riga "
+        "Technical University presented digital-transformation research. The "
+        "cross-border Rail Baltica project office and the Freeport of Riga Authority "
+        "commented on logistics infrastructure."
+    ),
+    "LT": (
+        "The Lithuanian Confederation of Industrialists (LPK) met in Vilnius with "
+        "representatives from Ignitis Group, Girteka Logistics, and Maxima Group. The "
+        "Bank of Lithuania (Lietuvos bankas) released its financial stability review "
+        "while the Lithuanian Free Market Institute (LFMI) published a regulatory burden "
+        "study. The Ministry of the Economy and Innovation coordinated with Enterprise "
+        "Lithuania and Invest Lithuania. Delfi Lithuania and Verslo žinios reported on "
+        "statements by the CEO of Telia Lietuva and the rector of Vilnius University. "
+        "The Lithuanian Trade Union Confederation (LPSK) raised wage-competitiveness "
+        "concerns. Vinted, Tesonet, and Šiaulių bankas discussed fintech ecosystem "
+        "growth. Vilnius Tech and Kaunas University of Technology (KTU) presented "
+        "advanced-manufacturing research. The Lithuanian Centre for Social Sciences and "
+        "the Research Council of Lithuania announced joint EU-funded projects."
+    ),
+    "LU": (
+        "The Luxembourg Business Federation (UEL) held consultations in Luxembourg City "
+        "with ArcelorMittal, SES SA, and Banque Internationale à Luxembourg (BIL). The "
+        "Banque centrale du Luxembourg (BCL) published its economic projections while "
+        "STATEC released updated GDP figures. The Ministry of the Economy coordinated "
+        "with Luxinnovation and the Luxembourg Chamber of Commerce. Luxemburger Wort and "
+        "Paperjam reported on statements by the CEO of Cactus Group and the rector of "
+        "the University of Luxembourg. The Luxembourg Confederation of Independent Trade "
+        "Unions (OGBL) discussed cross-border commuter policies. Eurofins Scientific, "
+        "RTL Group, and the European Investment Bank (EIB) — headquartered in Luxembourg "
+        "— outlined ESG investment strategies. The Luxembourg Institute of Science and "
+        "Technology (LIST) and the Luxembourg Institute of Health (LIH) presented "
+        "research findings. The Commission de Surveillance du Secteur Financier (CSSF) "
+        "issued new fintech guidelines."
+    ),
+    "MT": (
+        "The Malta Chamber of Commerce, Enterprise and Industry met in Valletta with "
+        "representatives from Bank of Valletta, GO plc, and Malta International Airport. "
+        "The Central Bank of Malta published its economic update while the Malta Council "
+        "for Economic and Social Development (MCESD) assessed labour-market trends. The "
+        "Ministry for the Economy, European Funds and Lands coordinated with Malta "
+        "Enterprise and the Malta Financial Services Authority (MFSA). The Times of "
+        "Malta and MaltaToday reported on the CEO of Enemalta and the rector of the "
+        "University of Malta. The General Workers' Union (GWU) raised housing-cost "
+        "concerns for foreign workers. Tipico, Betsson Group (Malta operations), and "
+        "HSBC Malta discussed the iGaming sector's contribution. The Malta Information "
+        "Technology Agency (MITA) and the Malta College of Arts, Science and Technology "
+        "(MCAST) presented digital-skills research. Transport Malta and the Malta "
+        "Freeport Authority commented on supply-chain resilience."
+    ),
+    "NL": (
+        "VNO-NCW, the Confederation of Netherlands Industry and Employers, held its "
+        "annual meeting in The Hague with executives from Royal Dutch Shell (Shell plc), "
+        "ASML, and ING Group. De Nederlandsche Bank (DNB) published its financial "
+        "stability overview while the CPB Netherlands Bureau for Economic Policy "
+        "Analysis released updated forecasts. The Ministry of Economic Affairs and "
+        "Climate Policy coordinated with the Netherlands Enterprise Agency (RVO). Het "
+        "Financieele Dagblad and NRC Handelsblad reported on statements by the CEO of "
+        "Philips and the president of the Royal Netherlands Academy of Arts and Sciences "
+        "(KNAW). The Federation of Dutch Trade Unions (FNV) discussed collective "
+        "bargaining trends. Unilever, Heineken, and ABN AMRO Bank outlined investment "
+        "plans. TNO (Netherlands Organisation for Applied Scientific Research) and Delft "
+        "University of Technology presented semiconductor-ecosystem research. The Dutch "
+        "Authority for the Financial Markets (AFM) and Invest-NL announced green-finance "
+        "frameworks."
+    ),
+    "PL": (
+        "The Polish Confederation Lewiatan held a summit in Warsaw with representatives "
+        "from PKN Orlen, PZU Group, and KGHM Polska Miedź. The National Bank of Poland "
+        "(NBP) released its inflation report while the Polish Economic Institute (PIE) "
+        "published an industrial-transformation study. The Ministry of Development and "
+        "Technology coordinated with the Polish Investment and Trade Agency (PAIH) and "
+        "the Polish Development Fund (PFR). Rzeczpospolita and Gazeta Wyborcza reported "
+        "on statements by the CEO of PKO Bank Polski and the rector of the University of "
+        "Warsaw. The Independent Self-Governing Trade Union Solidarity (NSZZ Solidarność) "
+        "discussed energy-transition workforce impacts. CD Projekt, Allegro, and Bank "
+        "Pekao outlined technology investment strategies. The Polish Academy of Sciences "
+        "(PAN) and the Warsaw University of Technology presented joint research on "
+        "electromobility. The National Centre for Research and Development (NCBR) "
+        "announced EU-funded innovation programmes."
+    ),
+    "PT": (
+        "The Confederation of Portuguese Industry (CIP) met in Lisbon with executives "
+        "from Galp Energia, EDP (Energias de Portugal), and Jerónimo Martins. The Banco "
+        "de Portugal published its economic bulletin while the Foundation for Science and "
+        "Technology (FCT) assessed R&D spending levels. The Ministry of Economy "
+        "coordinated with AICEP Portugal Global and the Portuguese Chamber of Commerce "
+        "and Industry (CCIP). Jornal de Negócios and Expresso reported on the CEO of "
+        "Sonae and the rector of the University of Lisbon. The General Confederation of "
+        "Portuguese Workers (CGTP-IN) raised productivity-gap concerns. The Navigator "
+        "Company, Mota-Engil, and Millennium BCP discussed infrastructure projects. The "
+        "University of Porto's Faculty of Engineering and the Instituto Superior Técnico "
+        "(IST) presented renewable-energy research. IAPMEI (Agency for Competitiveness "
+        "and Innovation) and Startup Portugal announced scale-up support measures."
+    ),
+    "RO": (
+        "The Alliance of Romanian Employers' Confederations (ACPR) convened in Bucharest "
+        "with representatives from OMV Petrom, Banca Transilvania, and Electrica SA. The "
+        "National Bank of Romania (BNR) released its inflation report while the National "
+        "Commission for Strategy and Prognosis (CNSP) updated economic forecasts. The "
+        "Ministry of Economy coordinated with the Romanian Chamber of Commerce and "
+        "Industry (CCIR) and Invest Romania. Ziarul Financiar and Economica.net reported "
+        "on statements by the CEO of Romgaz and the rector of the University of "
+        "Bucharest. The National Trade Union Bloc (BNS) and Cartel ALFA discussed "
+        "minimum-wage indexation. UiPath, Bitdefender, and Digi Communications outlined "
+        "tech-sector growth. The Romanian Academy and the Polytechnic University of "
+        "Bucharest presented digital-infrastructure research. EximBank Romania and the "
+        "Romanian Development Bank (BERD partnerships) announced SME credit facilities."
+    ),
+    "SK": (
+        "The National Union of Employers (RÚZ) met in Bratislava with executives from "
+        "Slovenský plynárenský priemysel (SPP), Slovnaft, and Tatra banka. The National "
+        "Bank of Slovakia (NBS) published its macroeconomic forecast while the Slovak "
+        "Academy of Sciences (SAV) released a demographic trends study. The Ministry of "
+        "Economy coordinated with the Slovak Investment and Trade Development Agency "
+        "(SARIO) and the Slovak Chamber of Commerce and Industry (SOPK). SME (Sme.sk) "
+        "and Hospodárske noviny reported on statements by the CEO of Slovak Telekom and "
+        "the rector of Comenius University. The Confederation of Trade Unions (KOZ SR) "
+        "discussed automotive-sector wage trends. Eset, Asseco Central Europe, and "
+        "Slovenská sporiteľňa outlined digital strategy. The Slovak University of "
+        "Technology in Bratislava (STU) and the Technical University of Košice (TUKE) "
+        "presented advanced-materials research. The Slovak Innovation and Energy Agency "
+        "(SIEA) announced green-transition funding."
+    ),
+    "SI": (
+        "The Chamber of Commerce and Industry of Slovenia (GZS) hosted a forum in "
+        "Ljubljana with Krka dd, Petrol dd, and NLB Group. The Bank of Slovenia (Banka "
+        "Slovenije) released its financial stability review while the Institute for "
+        "Macroeconomic Analysis and Development (IMAD/UMAR) updated GDP projections. The "
+        "Ministry of the Economy, Tourism and Sport coordinated with the SPIRIT Slovenia "
+        "public agency. Delo and Finance reported on statements by the CEO of Lek (a "
+        "Sandoz/Novartis company) and the rector of the University of Ljubljana. The "
+        "Association of Free Trade Unions of Slovenia (ZSSS) discussed productivity "
+        "benchmarks. Outfit7, Bitstamp, and Triglav Group outlined technology investment. "
+        "The Jožef Stefan Institute and the National Institute of Chemistry presented "
+        "materials-science research. The Slovenian Research and Innovation Agency (ARIS) "
+        "and SID Bank announced EU co-funded innovation grants."
+    ),
+    "ES": (
+        "The Spanish Confederation of Employers' Organizations (CEOE) held a plenary "
+        "session in Madrid with executives from Iberdrola, Banco Santander, and "
+        "Telefónica. The Banco de España published its quarterly economic bulletin while "
+        "the Centre for Economic Forecasting (CEPREDE) at Universidad Autónoma de Madrid "
+        "released employment projections. The Ministry of Economy, Trade and Enterprise "
+        "coordinated with ICEX Spain Trade & Investment and CDTI (Centre for Industrial "
+        "Technological Development). El País and Expansión reported on statements by the "
+        "CEO of Inditex and the president of the Spanish National Research Council "
+        "(CSIC). The Workers' Commissions (CCOO) and the General Union of Workers (UGT) "
+        "debated labour reform outcomes. Repsol, CaixaBank, and Amadeus IT Group "
+        "outlined digital transformation roadmaps. The Barcelona Supercomputing Center "
+        "(BSC) and the IESE Business School presented competitiveness analyses. The "
+        "Official Credit Institute (ICO) and COFIDES announced export financing "
+        "programmes."
+    ),
+    "SE": (
+        "The Confederation of Swedish Enterprise (Svenskt Näringsliv) held its annual "
+        "conference in Stockholm with leaders from Ericsson, Volvo Group, and H&M Group. "
+        "Sveriges Riksbank published its monetary policy report while the National "
+        "Institute of Economic Research (Konjunkturinstitutet) released labour-market "
+        "projections. The Ministry of Finance coordinated with Business Sweden and the "
+        "Swedish Agency for Economic and Regional Growth (Tillväxtverket). Dagens "
+        "Industri and Svenska Dagbladet reported on statements by the CEO of Spotify and "
+        "the president of the Royal Swedish Academy of Sciences. The Swedish Trade Union "
+        "Confederation (LO) and the Swedish Confederation of Professional Employees "
+        "(TCO) discussed green-transition skills gaps. Atlas Copco, Sandvik, and "
+        "Handelsbanken outlined investment strategies. The KTH Royal Institute of "
+        "Technology and the Karolinska Institute presented research on life-science "
+        "innovation. Vinnova (Sweden's innovation agency) and the Wallenberg Foundations "
+        "announced AI research funding."
+    ),
+}
+
+# Fallback for countries without a dedicated narrative
+_DEFAULT_ENTITY_NARRATIVE = ""
+
 
 def build_seed_document(country_code: str, scenario: str = "") -> str:
     """Generate a seed document for a country that feeds MiroFish ontology generation.
@@ -229,11 +644,24 @@ def build_seed_document(country_code: str, scenario: str = "") -> str:
         f"  GDP per capita (EUR): {country['gdp_per_capita']:,}",
         f"  Unemployment rate: {country['unemployment_rate']}%",
         f"  EU member state.",
-        "",
-        "Use the Eurostat baseline indicators above as reference data for "
-        "the simulation. The simulation MUST focus on the requirement stated "
-        "above.",
     ])
+
+    # --- Named entities for NER / knowledge-graph seeding -------------
+    entity_narrative = _COUNTRY_ENTITIES.get(
+        country_code.upper(), _DEFAULT_ENTITY_NARRATIVE
+    )
+    if entity_narrative:
+        lines.append("")
+        lines.append(f"Stakeholder landscape in {country['name']}:")
+        lines.append(entity_narrative)
+
+    # --- Closing instruction ------------------------------------------
+    lines.append("")
+    lines.append(
+        "Use the Eurostat baseline indicators and the named stakeholders "
+        "above as reference data. The simulation MUST focus on the "
+        "requirement stated at the top of this document."
+    )
     return "\n".join(lines)
 
 
