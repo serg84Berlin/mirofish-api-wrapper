@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Read(//c/dev/MiroFish-Offline/**)",
+      "Bash(docker compose:*)",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(ls /c/Python*/python.exe /c/Users/*/AppData/Local/Programs/Python/*/python.exe)",
+      "Bash(where.exe python:*)",
+      "Bash(/c/Users/s.esposito/AppData/Local/Programs/Python/Python313/python.exe -m pip install -q -r requirements.txt)",
+      "Bash(curl -s http://localhost:5050/api/health)",
+      "Bash(python3 -m json.tool)",
+      "Bash(docker ps:*)",
+      "Bash(curl -s http://localhost:5001/health)",
+      "Bash(pkill -f \"wrapper.py\")",
+      "Bash(curl:*)"
+    ]
+  }
+}
