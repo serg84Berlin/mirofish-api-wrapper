@@ -1,0 +1,22 @@
+services:
+  fusion-api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    env_file:
+      - /opt/dev/fusion/.env.mirofish
+    networks:
+      - proxy
+      - mirofish_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fusion.rule=Host(`api.sergiyesposito.de`)"
+      - "traefik.http.routers.fusion.entrypoints=websecure"
+      - "traefik.http.routers.fusion.tls.certresolver=letsencrypt"
+
+networks:
+  proxy:
+    external: true
+  mirofish_default:
+    external: true
