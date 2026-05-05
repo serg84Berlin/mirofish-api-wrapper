@@ -21,6 +21,8 @@ from flask_cors import CORS
 # ======================================================================
 
 MIROFISH_BASE_URL = os.getenv("MIROFISH_BASE_URL", "http://localhost:5001")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", os.getenv("OLLAMA_URL", "http://localhost:11434"))
+DEFAULT_MODEL = os.getenv("LLM_MODEL_NAME", "qwen2.5:7b")
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "3600"))
 SIM_RUN_TIMEOUT = int(os.getenv("SIM_RUN_TIMEOUT", "21600"))  # 6h for multi-agent simulation runs
 
@@ -683,6 +685,7 @@ class JobStore:
             "id": job_id,
             "country_code": country_code.upper(),
             "scenario": scenario,
+            "model": params.get("model"),
             "params": params,
             "status": "queued",
             "stage": None,
@@ -932,6 +935,9 @@ def api_simulate():
 
     scenario = body.get("scenario", "")
     params = body.get("params", {})
+    model = body.get("model")
+    if model:
+        params = {**params, "model": model}
 
     job = store.create(country_code, scenario, params)
 
@@ -955,6 +961,7 @@ def api_status(job_id: str):
         "stage": job["stage"],
         "stages_completed": job["stages_completed"],
         "progress": job["progress"],
+        "model": job.get("model"),
         "created_at": job["created_at"],
         "updated_at": job["updated_at"],
         "error": job["error"],
@@ -1009,6 +1016,38 @@ def api_chat(job_id: str):
 # ======================================================================
 # Entry point
 # ======================================================================
+
+
+@app.route("/api/health/deep", methods=["GET"])
+def api_health_deep():
+    """Detailed health check for showcase readiness."""
+    try:
+        mf.health()
+        mirofish_ok = True
+    except Exception:
+        mirofish_ok = False
+
+    try:
+        ollama_resp = requests.get(f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags", timeout=3.0)
+        ollama_ok = ollama_resp.ok
+        tags = ollama_resp.json().get("models", []) if ollama_ok else []
+        model_names = {m.get("name") for m in tags if isinstance(m, dict)}
+        model_ready = not model_names or DEFAULT_MODEL in model_names
+    except Exception:
+        ollama_ok = False
+        model_ready = False
+        model_names = set()
+
+    ready = mirofish_ok and ollama_ok and model_ready
+    return jsonify({
+        "status": "ok" if ready else "degraded",
+        "mirofish_reachable": mirofish_ok,
+        "mirofish_url": MIROFISH_BASE_URL,
+        "ollama_reachable": ollama_ok,
+        "model_ready": model_ready,
+        "model": DEFAULT_MODEL,
+        "available_models": sorted(model_names),
+    }), 200 if ready else 503
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050, debug=True)
